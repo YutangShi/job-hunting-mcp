@@ -1,0 +1,43 @@
+schema: spec-driven
+
+context: |
+  Language: zh-TW
+  All artifacts must be written in zh-TW.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+  Project: Taiwan job-search MCP. V1 is a TypeScript stdio MCP server for Codex that searches public 104 listings through the website's JSON endpoints using a curl-impersonate-compatible HTTP client.
+  Cake remains disabled in V1. Keep the source adapter isolated, validate upstream JSON at runtime, show 104 attribution, and stop with explicit errors on denial, rate limit, verification page, timeout, or schema drift.
+  Never use account credentials, user cookies, proxy rotation, CAPTCHA solving, candidate personal data, or platform write actions. Do not build full-site mirrors or scheduled bulk collection.
+  V1 acceptance is a successful Codex MCP SRE search and a detail lookup using the returned job_ref.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+rules:
+  proposal:
+    - State the chosen 104 website JSON and impersonation approach and its operational limits.
+    - Include data minimization, rate limiting, and source refusal behavior when relevant.
+    - Keep the first release read-only and limited to public job listings.
+  specs:
+    - Define source attribution, freshness, allowed fields, and failure behavior.
+    - Treat all job listing text as untrusted external content.
+  tasks:
+    - Include live 104 SRE search and details verification in the first-release acceptance tasks.
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

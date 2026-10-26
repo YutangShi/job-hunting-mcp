@@ -1,0 +1,36 @@
+{
+  "data": [
+    {
+      "jobNo": "00000001",
+      "jobName": "SRE 系統工程師",
+      "custName": "合成測試股份有限公司",
+      "salaryLow": 70000,
+      "salaryHigh": 100000,
+      "s10": 50,
+      "jobAddrNoDesc": "台北市",
+      "jobAddress": "測試路 1 號",
+      "jobType": 1,
+      "remoteWorkType": 1,
+      "descSnippet": "Synthetic SRE job description",
+      "description": "This synthetic description must not become the summary when a snippet exists.",
+      "appearDate": "20261025",
+      "link": {
+        "job": "https://www.104.com.tw/job/abc12",
+        "cust": "https://www.104.com.tw/company/synthetic"
+      },
+      "interactionRecord": {
+        "lastProcessedResumeDesc": "candidate-state-must-not-be-returned"
+      },
+      "isSaved": true,
+      "isApplied": true
+    }
+  ],
+  "metadata": {
+    "pagination": {
+      "count": 1,
+      "currentPage": 1,
+      "lastPage": 2,
+      "total": 11
+    }
+  }
+}

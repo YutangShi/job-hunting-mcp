@@ -1,6 +1,20 @@
 # job-hunting-mcp
 
-[繁體中文](README.md)
+🌐 [繁體中文](README.md) | English
+
+## Technology versions
+
+| Item | Version / approach |
+|---|---|
+| Project version | `0.1.0` |
+| Node.js | `22 LTS` (`>=22 <23`) |
+| TypeScript | `5.9.3` |
+| MCP SDK | `@modelcontextprotocol/sdk 1.32.2` |
+| Schema validation | `zod 4.6.7` |
+| HTTP client | `impers 0.1.2` (curl-impersonate compatible) |
+| MCP transport | Local `stdio` |
+| Browser automation | Playwright is not used; the current implementation uses the `impers` HTTP client |
+| License | MIT |
 
 `job-hunting-mcp` is a read-only Model Context Protocol (MCP) server for personal job search. An AI agent can search public listings from 104 and Cake using natural language and return the company, title, description, salary, location, source, and original link for every result.
 

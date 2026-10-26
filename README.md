@@ -1,6 +1,20 @@
 # job-hunting-mcp
 
-[English version](README.en.md)
+🌐 繁體中文 | [English](README.en.md)
+
+## 技術版本
+
+| 項目 | 版本／方式 |
+|---|---|
+| 專案版本 | `0.1.0` |
+| Node.js | `22 LTS`（`>=22 <23`） |
+| TypeScript | `5.9.3` |
+| MCP SDK | `@modelcontextprotocol/sdk 1.32.2` |
+| Schema validation | `zod 4.6.7` |
+| HTTP client | `impers 0.1.2`（curl-impersonate 相容） |
+| MCP transport | Local `stdio` |
+| Browser automation | 未使用 Playwright；目前使用 `impers` HTTP client |
+| License | MIT |
 
 `job-hunting-mcp` 是一個協助個人查詢工作的唯讀 Model Context Protocol（MCP）server。AI agent 可以依自然語言同時搜尋 104 與 Cake 的公開職缺，逐筆顯示資料來源、公司、職稱、工作內容、薪資、地點和原始連結。
 

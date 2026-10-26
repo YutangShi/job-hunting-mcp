@@ -4,17 +4,14 @@
 
 ## 技術版本
 
-| 項目 | 版本／方式 |
-|---|---|
-| 專案版本 | `0.1.0` |
-| Node.js | `22 LTS`（`>=22 <23`） |
-| TypeScript | `5.9.3` |
-| MCP SDK | `@modelcontextprotocol/sdk 1.32.2` |
-| Schema validation | `zod 4.6.7` |
-| HTTP client | `impers 0.1.2`（curl-impersonate 相容） |
-| MCP transport | Local `stdio` |
-| Browser automation | 未使用 Playwright；目前使用 `impers` HTTP client |
-| License | MIT |
+[![Version](https://img.shields.io/badge/version-0.1.0-blue?label=version)](package.json)
+[![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.32.2-FF6F00)](https://www.npmjs.com/package/@modelcontextprotocol/sdk)
+[![Zod](https://img.shields.io/badge/Zod-4.6.7-3E67B1)](https://www.npmjs.com/package/zod)
+[![impers](https://img.shields.io/badge/impers-0.1.2-6E56CF)](https://www.npmjs.com/package/impers)
+[![Transport](https://img.shields.io/badge/transport-local%20stdio-555555)](README.md#MCP-如何運作)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 `job-hunting-mcp` 是一個協助個人查詢工作的唯讀 Model Context Protocol（MCP）server。AI agent 可以依自然語言同時搜尋 104 與 Cake 的公開職缺，逐筆顯示資料來源、公司、職稱、工作內容、薪資、地點和原始連結。
 

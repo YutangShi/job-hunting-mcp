@@ -4,17 +4,14 @@
 
 ## Technology versions
 
-| Item | Version / approach |
-|---|---|
-| Project version | `0.1.0` |
-| Node.js | `22 LTS` (`>=22 <23`) |
-| TypeScript | `5.9.3` |
-| MCP SDK | `@modelcontextprotocol/sdk 1.32.2` |
-| Schema validation | `zod 4.6.7` |
-| HTTP client | `impers 0.1.2` (curl-impersonate compatible) |
-| MCP transport | Local `stdio` |
-| Browser automation | Playwright is not used; the current implementation uses the `impers` HTTP client |
-| License | MIT |
+[![Version](https://img.shields.io/badge/version-0.1.0-blue?label=version)](package.json)
+[![Node.js](https://img.shields.io/badge/Node.js-22%20LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![MCP SDK](https://img.shields.io/badge/MCP%20SDK-1.32.2-FF6F00)](https://www.npmjs.com/package/@modelcontextprotocol/sdk)
+[![Zod](https://img.shields.io/badge/Zod-4.6.7-3E67B1)](https://www.npmjs.com/package/zod)
+[![impers](https://img.shields.io/badge/impers-0.1.2-6E56CF)](https://www.npmjs.com/package/impers)
+[![Transport](https://img.shields.io/badge/transport-local%20stdio-555555)](README.en.md#how-mcp-works)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 `job-hunting-mcp` is a read-only Model Context Protocol (MCP) server for personal job search. An AI agent can search public listings from 104 and Cake using natural language and return the company, title, description, salary, location, source, and original link for every result.
 

@@ -5,6 +5,7 @@ export type JsonResponse = { status: number; contentType: string | null; body: u
 
 export interface HttpTransport {
   getJson(url: string, params?: Record<string, string>): Promise<unknown>;
+  getText?(url: string, params?: Record<string, string>): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -84,6 +85,32 @@ export class ImpersTransport implements HttpTransport {
         throw new SourceError("SOURCE_TIMEOUT", "104 查詢逾時。", { cause: lastError });
       }
       throw new SourceError("SOURCE_UNAVAILABLE", "無法連線至 104 搜尋服務。", { cause: lastError });
+    });
+  }
+
+  async getText(url: string, params?: Record<string, string>): Promise<string> {
+    const parsed = new URL(url);
+    if (parsed.origin !== ALLOWED_ORIGIN) throw new SourceError("SOURCE_UNAVAILABLE", "拒絕連線至非 104 來源網址。");
+    return this.withPacing(async () => {
+      const response = await this.request(url, {
+        ...(params ? { params } : {}),
+        impersonate: this.impersonate,
+        timeout: this.timeoutSeconds,
+        connectTimeout: Math.min(10, this.timeoutSeconds),
+        headers: { ...DEFAULT_HEADERS, Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8" },
+        signal: new AbortController().signal,
+        contentCallback: () => {},
+        headerCallback: () => {},
+      }).catch((error: unknown) => { throw new SourceError("SOURCE_UNAVAILABLE", "無法連線至 104 公司服務。", { cause: error }); });
+      try {
+        if (response.content.byteLength > this.maxResponseBytes) throw new SourceError("SOURCE_UNAVAILABLE", "104 回應超過允許大小。");
+        if (response.status === 429) throw new SourceError("SOURCE_RATE_LIMITED", "104 暫時限制查詢，請稍後再試。");
+        if ([401, 403].includes(response.status)) throw new SourceError("SOURCE_FORBIDDEN", `104 回應 HTTP ${response.status}。`);
+        if (response.status < 200 || response.status >= 300) throw new SourceError("SOURCE_UNAVAILABLE", `104 回應 HTTP ${response.status}。`);
+        const text = response.content.toString("utf8");
+        if (/just a moment|cf-chl-|驗證碼|captcha/i.test(text)) throw new SourceError("SOURCE_CHALLENGE", "104 回傳驗證頁，未取得公司資料。");
+        return text;
+      } finally { await response.close(); }
     });
   }
 

@@ -5,7 +5,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const serverEntry = resolve(process.cwd(), "dist/index.js");
-const expectedTools = ["get_job_details", "search_jobs"];
+const expectedTools = ["compare_jobs", "get_company_detail", "get_job_details", "search_jobs"];
 
 test("built stdio MCP server lists and completes every exposed tool", async () => {
   const transport = new StdioClientTransport({
@@ -38,6 +38,7 @@ test("built stdio MCP server lists and completes every exposed tool", async () =
     const searchData = search.structuredContent as {
       source: string;
       jobs: Array<{ source: string; job_ref: string; url: string; location: string }>;
+      source_statuses?: Array<{ source: string; ok: boolean; error?: string }>;
     };
     assert.equal(searchData.source, "multiple");
     assert.ok(searchData.jobs.length >= 10, "default search should return at least 10 listings when enabled sources have enough matches");
@@ -51,27 +52,47 @@ test("built stdio MCP server lists and completes every exposed tool", async () =
       if (job.source === "104") assert.ok(job.location.startsWith("台北市"), `unexpected non-Taipei 104 job: ${job.job_ref}`);
     }
 
-    const detail = await client.callTool({
-      name: "get_job_details",
-      arguments: { job_ref: searchData.jobs[0]!.job_ref },
-    });
-    assert.equal(detail.isError, undefined, "get_job_details should complete successfully");
-    const detailData = detail.structuredContent as {
-      source: string;
-      job_ref: string;
-      job_name: string;
-      company: string;
-      description: string;
-      salary: string;
-      url: string;
-    };
-    assert.equal(detailData.source, "104");
-    assert.equal(detailData.job_ref, searchData.jobs[0]!.job_ref);
-    assert.ok(detailData.job_name.length > 0);
-    assert.ok(detailData.company.length > 0);
-    assert.ok(detailData.description.length > 0);
-    assert.ok(detailData.salary.length > 0);
-    assert.match(detailData.url, /^https:\/\/www\.104\.com\.tw\/job\//);
+    const taipei104Jobs = searchData.jobs.filter((job) => job.source === "104");
+    if (taipei104Jobs.length > 0) {
+      const detail = await client.callTool({ name: "get_job_details", arguments: { job_ref: taipei104Jobs[0]!.job_ref } });
+      assert.equal(detail.isError, undefined, "get_job_details should complete successfully for a 104 result");
+      const detailData = detail.structuredContent as { source: string; job_ref: string; job_name: string; company: string; description: string; salary: string; url: string };
+      assert.equal(detailData.source, "104");
+      assert.equal(detailData.job_ref, taipei104Jobs[0]!.job_ref);
+      assert.ok(detailData.job_name.length > 0);
+      assert.ok(detailData.company.length > 0);
+      assert.ok(detailData.description.length > 0);
+      assert.ok(detailData.salary.length > 0);
+      assert.match(detailData.url, /^https:\/\/www\.104\.com\.tw\/job\//);
+    } else {
+      assert.equal(searchData.source_statuses?.find((status) => status.source === "104")?.ok, false, "missing 104 results must report a source failure");
+    }
+
+    const comparisonRefs = taipei104Jobs.length >= 2 ? taipei104Jobs.slice(0, 2).map((job) => job.job_ref) : searchData.jobs.slice(0, 2).map((job) => job.job_ref);
+    if (comparisonRefs.length >= 2) {
+      const comparison = await client.callTool({ name: "compare_jobs", arguments: { job_refs: comparisonRefs } });
+      assert.equal(comparison.isError, undefined, "compare_jobs should complete successfully");
+      const comparisonData = comparison.structuredContent as { status: string; items: Array<{ source: string; job_ref: string; salary: { raw: string } }> };
+      assert.ok(["complete", "partial"].includes(comparisonData.status));
+      if (comparisonData.items.length > 0) assert.ok(comparisonData.items.every((item) => item.salary.raw.length > 0));
+      else assert.equal(comparisonData.status, "partial");
+    } else {
+      const comparison = await client.callTool({ name: "compare_jobs", arguments: { job_refs: ["bad", "also-bad"] } });
+      assert.equal(comparison.isError, true);
+    }
+
+    const companyRef = taipei104Jobs[0]?.job_ref ?? searchData.jobs[0]?.job_ref ?? "bad";
+    const company = await client.callTool({ name: "get_company_detail", arguments: { job_ref: companyRef } });
+    if (taipei104Jobs.length > 0) {
+      assert.equal(company.isError, undefined, "get_company_detail should complete successfully for a 104 result");
+      const companyData = company.structuredContent as { source: string; company_name: string; company_url: string; open_jobs: unknown[] };
+      assert.equal(companyData.source, "104");
+      assert.ok(companyData.company_name.length > 0);
+      assert.match(companyData.company_url, /^https:\/\/www\.104\.com\.tw\/company\//);
+      assert.ok(Array.isArray(companyData.open_jobs));
+    } else {
+      assert.equal(company.isError, true, "company detail must report the unavailable 104 source");
+    }
   } finally {
     await client.close();
   }

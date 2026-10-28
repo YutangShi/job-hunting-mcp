@@ -91,14 +91,16 @@ Local clients communicate through stdio MCP frames. Source requests use bounded 
 
 ## MCP tools
 
-The program currently registers exactly two MCP tools. `smoke:104`, `smoke:cake`, and `test:e2e` are validation commands, not MCP tools.
+The program currently registers four MCP tools; V1 adds `compare_jobs` and `get_company_detail`. `smoke:104`, `smoke:cake`, and `test:e2e` are validation commands, not MCP tools.
 
 | Tool | Purpose | Main input | Returned data |
 |---|---|---|---|
 | `search_jobs` | Search public jobs across all enabled sources | `keyword`, `area`, `jobcat`, `salary_min`, `job_type`, `remote`, `is_new`, `exp_years`, `edu`, `sort`, `page`, `page_size` | Company, title, description, salary, location, source, original link, `job_ref`, source status |
 | `get_job_details` | Retrieve full public details for a search result | `job_ref` returned by `search_jobs` | Company, title, full description, requirements, salary, location, source, original link |
+| `compare_jobs` | Compare company, salary, location, requirements, and data completeness across 2–10 search results | `job_refs` returned by `search_jobs` | Comparison status, per-job data, salary comparability, source, original links, failures |
+| `get_company_detail` | Read public company information and public openings through a job `job_ref` | `job_ref` returned by `search_jobs` | Company name, industry, size, description, company link, public openings, source, fetch time |
 
-`search_jobs` does not accept a `source` field. `get_job_details` does not accept an arbitrary URL; it accepts only a source-qualified `job_ref`.
+`search_jobs` does not accept a `source` field. `get_job_details`, `compare_jobs`, and `get_company_detail` do not accept arbitrary URLs; they accept only source-qualified `job_ref` values. `get_company_detail` requires the job-to-company mapping captured by `search_jobs`.
 
 ## Testing
 
@@ -114,7 +116,7 @@ npm run smoke:cake
 - `npm test`: unit, adapter, transport, and in-memory MCP tests
 - `npm run typecheck`: TypeScript type checking
 - `npm run build`: creates `dist/index.js`
-- `npm run test:e2e`: starts the built stdio MCP server, lists all tools, and invokes search and details
+- `npm run test:e2e`: starts the built stdio MCP server, lists all four tools, and invokes search, details, comparison, and company details; source refusals are validated as explicit errors
 - `npm run smoke:104`: live Taipei SRE search and details validation
 - `npm run smoke:cake`: live Cake SRE search and details validation; 403, 429, challenge, and schema changes fail explicitly
 

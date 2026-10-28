@@ -16,7 +16,7 @@ export const RawSearchJobSchema = z.object({
   descSnippet: z.string().max(100_000).optional().default(""),
   description: z.string().max(500_000).optional().default(""),
   appearDate: z.string().max(30).optional().default(""),
-  link: z.object({ job: z.string().min(1).max(2_000) }).passthrough(),
+  link: z.object({ job: z.string().min(1).max(2_000), cust: z.string().max(2_000).optional() }).passthrough(),
 }).passthrough();
 
 export const RawSearchResponseSchema = z.object({

@@ -5,6 +5,7 @@ import { SourceError } from "./sources/104/errors.js";
 import { ImpersTransport } from "./sources/104/http-transport.js";
 import { Job104Adapter } from "./sources/104/adapter.js";
 import type { JobSourceAdapter } from "./sources/source-adapter.js";
+import { compareJobs } from "./services/job-analysis.js";
 
 const searchInputShape = {
   keyword: z.string().trim().max(100).optional().describe("職務關鍵字，例如 SRE、DevOps、資料工程師"),
@@ -62,6 +63,33 @@ export function createMcpServer(adapter: JobSourceAdapter = new Job104Adapter(ne
     }
   });
 
+  server.registerTool("compare_jobs", {
+    title: "比較職缺",
+    description: "比較兩至十筆 search_jobs 回傳的來源限定 job_ref，回傳公司、職稱、工作內容、薪資、地點、條件、來源與資料狀態；不接受任意 URL。",
+    inputSchema: {
+      job_refs: z.array(z.string().min(1).max(140)).min(2).max(10).describe("search_jobs 結果中的 2 至 10 筆 job_ref"),
+    },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  }, async ({ job_refs }) => {
+    try {
+      const result = await compareJobs(adapter, job_refs);
+      return { content: [{ type: "text", text: formatComparison(result) }], structuredContent: result as unknown as Record<string, unknown> };
+    } catch (error) { return toolError(error); }
+  });
+
+  server.registerTool("get_company_detail", {
+    title: "讀取公司詳情",
+    description: "依 search_jobs 回傳的 job_ref 讀取所屬公司的公開詳情與公開職缺清單；不接受任意公司 URL 或私人聯絡資料。",
+    inputSchema: { job_ref: z.string().min(1).max(140).describe("search_jobs 結果中的 job_ref，例如 104:8ue17") },
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  }, async ({ job_ref }) => {
+    try {
+      if (!adapter.getCompanyDetail) throw new SourceError("UNSUPPORTED_SOURCE_CAPABILITY", "目前職缺來源不支援公司詳情。");
+      const result = await adapter.getCompanyDetail(job_ref);
+      return { content: [{ type: "text", text: formatCompanyDetail(result) }], structuredContent: result as unknown as Record<string, unknown> };
+    } catch (error) { return toolError(error); }
+  });
+
   return server;
 }
 
@@ -108,5 +136,34 @@ function formatJobDetail(detail: Awaited<ReturnType<JobSourceAdapter["getDetails
     `職務內容：\n${detail.description || "未提供"}`,
     `職缺：${detail.url}`,
     `job_ref：${detail.job_ref}`,
+  ].join("\n\n");
+}
+
+function formatComparison(result: Awaited<ReturnType<typeof compareJobs>>): string {
+  const rows = result.items.map((item, index) => [
+    `${index + 1}. ${item.job_name}`,
+    `公司：${item.company || "未提供"}`,
+    `薪資：${item.salary.raw || "未提供"}`,
+    `地點：${item.location || "未提供"}`,
+    `工作內容描述：${item.description || "未提供"}`,
+    `條件：${item.requirements || "未提供"}`,
+    `來源：${item.source}`,
+    `連結：${item.url}`,
+    `job_ref：${item.job_ref}`,
+  ].join("\n"));
+  const failures = result.failures.length > 0 ? `\n\n失敗項目：${result.failures.map((item) => `${item.job_ref}（${item.code}）`).join("、")}` : "";
+  return `比較狀態：${result.status}\n\n${rows.join("\n\n")}${failures}`;
+}
+
+function formatCompanyDetail(company: Awaited<ReturnType<NonNullable<JobSourceAdapter["getCompanyDetail"]>>>): string {
+  return [
+    `公司：${company.company_name}`,
+    `來源：${company.source}`,
+    `產業：${company.industry || "未提供"}`,
+    `規模：${company.size || "未提供"}`,
+    `公司連結：${company.company_url}`,
+    `公司介紹：\n${company.description || "未提供"}`,
+    `目前公開職缺：${company.open_jobs.length} 筆`,
+    ...company.open_jobs.map((job, index) => `${index + 1}. ${job.job_name}｜${job.location || "未提供"}｜${job.url}`),
   ].join("\n\n");
 }

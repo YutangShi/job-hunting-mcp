@@ -1,3 +1,4 @@
+import { CompanyDetailSchema, type CompanyDetail } from "../../domain/analysis-schemas.js";
 import { JobDetailSchema, JobSummarySchema, SearchQuerySchema, type JobDetail, type JobSummary, type SearchQuery, type SearchResponse } from "../../domain/schemas.js";
 import { SourceError } from "./errors.js";
 import type { HttpTransport } from "./http-transport.js";
@@ -16,6 +17,7 @@ const SALARY_PREFIX: Record<number, string> = { 30: "時薪", 40: "日薪", 50: 
 
 export class Job104Adapter {
   readonly source = "104" as const;
+  private readonly companyUrls = new Map<string, string>();
 
   constructor(private readonly http: HttpTransport) {}
 
@@ -31,6 +33,11 @@ export class Job104Adapter {
       throw new SourceError("SOURCE_SCHEMA_CHANGED", "104 搜尋回應格式已變更。");
     }
     const fetchedAt = new Date().toISOString();
+    for (const job of parsed.data.data) {
+      const jobUrl = normalizeJobUrl(job.link.job);
+      const companyUrl = normalizeCompanyUrl(job.link.cust);
+      if (jobUrl && companyUrl) this.companyUrls.set(`104:${jobUrl.slice(SOURCE_JOB_URL.length)}`, companyUrl);
+    }
     const jobs = parsed.data.data
       .map((job) => toSummary(job, fetchedAt))
       .filter((job): job is JobSummary => job !== null)
@@ -85,6 +92,18 @@ export class Job104Adapter {
     return JobDetailSchema.parse(result);
   }
 
+  async getCompanyDetail(input: string): Promise<CompanyDetail> {
+    if (typeof input !== "string" || !/^104:[a-zA-Z0-9]{3,32}$/.test(input)) {
+      throw new SourceError("INVALID_JOB_REF", "job_ref 格式無效；請使用搜尋結果中的 104 reference。");
+    }
+    const companyUrl = this.companyUrls.get(input);
+    if (!companyUrl) throw new SourceError("INVALID_JOB_REF", "找不到此 job_ref 的公司來源；請先執行 search_jobs。");
+    if (!this.http.getText) throw new SourceError("UNSUPPORTED_SOURCE_CAPABILITY", "目前 104 transport 不支援公司詳情。");
+    const html = await this.http.getText(companyUrl);
+    const parsed = parseCompanyPage(html, companyUrl, new Date().toISOString());
+    return CompanyDetailSchema.parse(parsed);
+  }
+
   async close(): Promise<void> {
     await this.http.close();
   }
@@ -124,6 +143,45 @@ function normalizeJobUrl(value: string): string | null {
     return null;
   }
 }
+
+function normalizeCompanyUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value.startsWith("//") ? `https:${value}` : value);
+    if (url.protocol !== "https:" || url.hostname !== "www.104.com.tw") return null;
+    const match = url.pathname.match(/^\/company\/([a-zA-Z0-9_-]{3,80})\/?$/);
+    return match?.[1] ? `https://www.104.com.tw/company/${match[1]}` : null;
+  } catch { return null; }
+}
+
+function parseCompanyPage(html: string, companyUrl: string, fetchedAt: string): CompanyDetail {
+  const jsonLd = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i)?.[1];
+  let organization: Record<string, unknown> = {};
+  if (jsonLd) {
+    try {
+      const parsed = JSON.parse(jsonLd) as unknown;
+      organization = Array.isArray(parsed) ? (parsed.find((item) => typeof item === "object" && item !== null && (item as { "@type"?: unknown })["@type"] === "Organization") as Record<string, unknown> | undefined ?? {}) : (parsed as Record<string, unknown>);
+    } catch { throw new SourceError("SOURCE_NON_JSON", "104 公司頁面的結構化資料不是有效 JSON。"); }
+  }
+  const main = html.match(/<main[^>]*data-company-name=["']([^"']*)["'][^>]*data-industry=["']([^"']*)["'][^>]*data-size=["']([^"']*)["'][^>]*>([\s\S]*?)<\/main>/i);
+  const companyName = textValue(organization.name) || decodeHtml(main?.[1] ?? metaContent(html, "og:title").replace(/｜.*$/, ""));
+  if (!companyName) throw new SourceError("SOURCE_SCHEMA_CHANGED", "104 公司頁面缺少公司名稱。");
+  const industry = textValue(organization.industry) || decodeHtml(main?.[2] ?? "");
+  const size = textValue(organization.numberOfEmployees) || decodeHtml(main?.[3] ?? "");
+  const description = textValue(organization.description) || decodeHtml(main?.[4]?.match(/<section[^>]*class=["']company-intro["'][^>]*>([\s\S]*?)<\/section>/i)?.[1] ?? metaContent(html, "description"));
+  const jobs = [...html.matchAll(/<a[^>]+href=["'](https:\/\/www\.104\.com\.tw\/job\/([a-zA-Z0-9]{3,32})|\/job\/([a-zA-Z0-9]{3,32}))["'][^>]*>([\s\S]*?)<\/a>/gi)].map((match) => {
+    const code = match[2] ?? match[3];
+    if (!code) return null;
+    const title = decodeHtml(stripTags(match[4] ?? "")).trim();
+    return JobSummarySchema.parse({ source: "104", job_ref: `104:${code}`, job_name: title || "未提供", company: companyName, salary: "未提供", location: "未提供", snippet: "", url: `https://www.104.com.tw/job/${code}`, appear_date: "", fetched_at: fetchedAt });
+  }).filter((job): job is JobSummary => job !== null);
+  return { source: "104", company_ref: `104-company:${companyUrl.split("/").pop() ?? "unknown"}`, company_name: companyName.slice(0, 200), company_url: companyUrl, industry: industry.slice(0, 200), size: size.slice(0, 100), location: "未提供", description: description.slice(0, 5000), benefits: [], open_jobs: jobs.slice(0, 50), fetched_at: fetchedAt };
+}
+
+function metaContent(html: string, name: string): string { return html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${name}["'][^>]+content=["']([^"']*)["'][^>]*>`, "i"))?.[1] ?? ""; }
+function stripTags(value: string): string { return value.replace(/<[^>]+>/g, ""); }
+function decodeHtml(value: string): string { return value.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim(); }
+function textValue(value: unknown): string { return typeof value === "string" ? decodeHtml(value) : typeof value === "number" ? String(value) : ""; }
 
 function formatSalary(low: number, high: number, salaryType: number): string {
   if (salaryType === 10 || (low === 0 && (high === 0 || high >= SALARY_HIGH_SENTINEL))) return "待遇面議";

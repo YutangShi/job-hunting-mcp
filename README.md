@@ -91,14 +91,16 @@ AI agent 使用回傳的 job_ref 呼叫 get_job_details
 
 ## MCP tools
 
-目前程式實際註冊的 MCP tools 只有以下兩個。`smoke:104`、`smoke:cake`、`test:e2e` 是測試／驗證命令，不是 MCP tools。
+目前程式實際註冊 4 個 MCP tools；其中 V1 新增 `compare_jobs` 與 `get_company_detail`。`smoke:104`、`smoke:cake`、`test:e2e` 是測試／驗證命令，不是 MCP tools。
 
 | Tool | 用途 | 主要輸入 | 回傳內容 |
 |---|---|---|---|
 | `search_jobs` | 同時搜尋所有啟用來源的公開職缺 | `keyword`、`area`、`jobcat`、`salary_min`、`job_type`、`remote`、`is_new`、`exp_years`、`edu`、`sort`、`page`、`page_size` | 公司、職稱、工作內容描述、薪資、地點、來源、原始連結、`job_ref`、來源狀態 |
 | `get_job_details` | 讀取搜尋結果對應的完整公開職缺內容 | `job_ref`，必須來自 `search_jobs` | 公司、職稱、完整工作內容、條件、薪資、地點、來源、原始連結 |
+| `compare_jobs` | 比較 2–10 筆搜尋結果的公司、薪資、地點、條件與資料完整度 | `job_refs`，必須來自 `search_jobs` | 比較狀態、逐筆職缺資料、薪資可比較性、來源、原始連結、失敗項目 |
+| `get_company_detail` | 依職缺 `job_ref` 讀取所屬公司的公開資訊與公開職缺 | `job_ref`，必須來自 `search_jobs` | 公司名稱、產業、規模、介紹、公司連結、公開職缺、來源、擷取時間 |
 
-`search_jobs` 不接受 `source` 欄位；使用者不需要知道職缺來自哪個平台。`get_job_details` 不接受任意 URL，只接受來源限定的 `job_ref`。
+`search_jobs` 不接受 `source` 欄位；使用者不需要知道職缺來自哪個平台。`get_job_details`、`compare_jobs` 與 `get_company_detail` 都不接受任意 URL，只接受來源限定的 `job_ref`。`get_company_detail` 必須先由 `search_jobs` 建立職缺與公司連結映射。
 
 ## 測試與驗證
 
@@ -114,7 +116,7 @@ npm run smoke:cake
 - `npm test`：執行 unit、adapter、transport 和 MCP in-memory 測試
 - `npm run typecheck`：執行 TypeScript 型別檢查
 - `npm run build`：建立 `dist/index.js`
-- `npm run test:e2e`：啟動建置後的 stdio MCP server，列出全部 tools，實際呼叫搜尋與詳情
+- `npm run test:e2e`：啟動建置後的 stdio MCP server，列出全部 4 個 tools，實際呼叫搜尋、詳情、比較與公司詳情；來源被拒絕時驗證明確錯誤狀態
 - `npm run smoke:104`：即時驗證台北 SRE 多筆搜尋與詳情
 - `npm run smoke:cake`：即時驗證 Cake SRE 搜尋與詳情；來源回傳 403、429、challenge 或 schema 變更時會明確失敗
 

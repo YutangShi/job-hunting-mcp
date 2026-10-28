@@ -1,3 +1,4 @@
+import type { CompanyDetail } from "../domain/analysis-schemas.js";
 import type { JobDetail, SearchQuery, SearchResponse } from "../domain/schemas.js";
 import { SourceError } from "./104/errors.js";
 import type { JobSourceAdapter } from "./source-adapter.js";
@@ -36,6 +37,13 @@ export class MultiSourceAdapter implements JobSourceAdapter {
     const adapter = this.adapters.find((candidate) => candidate.source === source);
     if (!adapter) throw new SourceError("INVALID_JOB_REF", "job_ref 的來源未啟用或不受支援。");
     return adapter.getDetails(jobRef);
+  }
+
+  async getCompanyDetail(jobRef: string): Promise<CompanyDetail> {
+    const source = jobRef.split(":", 1)[0];
+    const adapter = this.adapters.find((candidate) => candidate.source === source);
+    if (!adapter?.getCompanyDetail) throw new SourceError("UNSUPPORTED_SOURCE_CAPABILITY", "職缺來源不支援公司詳情。");
+    return adapter.getCompanyDetail(jobRef);
   }
 
   async close(): Promise<void> { await Promise.all(this.adapters.map((adapter) => adapter.close())); }

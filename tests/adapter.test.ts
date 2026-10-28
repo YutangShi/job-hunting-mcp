@@ -24,6 +24,14 @@ class FakeTransport {
   async close(): Promise<void> {}
 }
 
+class FakeCompanyTransport extends FakeTransport {
+  constructor(private readonly html: string) { super([searchFixture]); }
+  async getText(url: string): Promise<string> {
+    this.calls.push({ url });
+    return this.html;
+  }
+}
+
 test("search maps 104 records and defaults to a 10-result page", async () => {
   const oversized = structuredClone(searchFixture) as { data: Array<{ descSnippet: string }> };
   oversized.data[0]!.descSnippet = "x".repeat(600);
@@ -94,4 +102,17 @@ test("malformed upstream payload is reported as schema changed", async () => {
     assert.equal(error.code, "SOURCE_SCHEMA_CHANGED");
     return true;
   });
+});
+
+test("company detail uses the company link captured from a validated job search result", async () => {
+  const transport = new FakeCompanyTransport(await readFile(resolve(here, "fixtures/company.html"), "utf8"));
+  const adapter = new Job104Adapter(transport);
+  await adapter.search({ keyword: "SRE" });
+  const result = await adapter.getCompanyDetail("104:abc12");
+  assert.equal(result.source, "104");
+  assert.equal(result.company_name, "合成測試股份有限公司");
+  assert.equal(result.industry, "軟體及網路相關業");
+  assert.equal(result.company_url, "https://www.104.com.tw/company/synthetic");
+  assert.equal(result.open_jobs.length, 1);
+  assert.equal(transport.calls.at(-1)?.url, "https://www.104.com.tw/company/synthetic");
 });
